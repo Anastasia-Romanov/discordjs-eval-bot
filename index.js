@@ -17,22 +17,25 @@ app.listen(port, () =>
 // Bot code begins here.
 const Discord = require('discord.js');
 var client;
-{
-  const infect = (data, disallowed, replacement) => {
+
+  const infect = (data, disallowed, replacement, parent) => {
     if (data === disallowed) return replacement;
     
-    if (typeof data === 'object' || typeof data === 'function') {
+    if (typeof data === 'function') {
+      let infected = (...args) => {
+        let bound = data.bind(parent);
+        return infect(bound(...args));
+      };
+      infected.toString = infected.toString.bind(data);
+      return infected;
+    }
+    
+    if (typeof data === 'object') {
       return new Proxy(data, {
-        get(target, prop) {
+        get() {
           let result = Reflect.get(...arguments);
           if (result === disallowed) return replacement;
-          return infect(result, disallowed, replacement);
-        },
-        apply(target) {
-          console.log(target)
-          let result = Reflect.apply(...arguments);
-          if (result === disallowed) return replacement;
-          return infect(result, disallowed, replacement);
+          return infect(result, disallowed, replacement, data);
         }
       });
     }
@@ -41,7 +44,7 @@ var client;
   };
   client = infect(new Discord.Client({ partials: ['MESSAGE', 'CHANNEL', 'REACTION'] }), process.env.DISCORD_TOKEN, 'p4ssw0rd');
   Object.defineProperty(process.env, "DISCORD_TOKEN", { value: 'p4ssw0rd' });
-}
+
 const fetch = require("node-fetch");
 const fs = require('fs');
 var prefix = ';'
@@ -114,7 +117,7 @@ client.on('message', async (message) => {
       );
 
     let filter = func.toString()
-    if (filter.includes("token") || filter.includes("concat") || filter.includes("import")) {
+    if (filter.includes("import")) {
       evl =
         'bad code big no no';
     } else {
@@ -123,7 +126,7 @@ client.on('message', async (message) => {
         Discord,
         client,
         fetch,
-        message,
+        message: infect(message),
         args,
         prefix,
         setPrefix(v) {
@@ -197,7 +200,7 @@ client.login()
     process.exit(0);
   });
   setInterval(() => {
-    if (client._events.message !== messageEvent || client.token !== token) client.destroy();
+    if (false) client.destroy();
   }, 1000);
   function convertRequire(require) {
     let rqr = require
