@@ -49,11 +49,15 @@ client.on('ready', async () => {
 		// doinkythederp's 100% secure security block for stuff because of circuit crashing the bot
 		let token = process.env.DISCORD_TOKEN;
 		let destroy = client.destroy;
-		client.destroy = function() {
-			console.log('client destroyed!');
-			destroy.call(this);
-			process.exit(0);
-		};
+		Object.defineProperty(client, 'destroy', {
+			value: function() {
+				console.log('client destroyed!');
+				destroy.call(client);
+				process.exit();
+			},
+			writable: false,
+			configurable: false,
+		});
 		setInterval(() => {
 			if (!client._events.messageCreate || client.token !== token) process.exit();
 		}, 1000);
